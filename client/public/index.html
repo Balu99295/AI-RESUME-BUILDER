@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Formatter</title>
+    <link rel="stylesheet" href="styles.css">
+    
+</head>
+
+<body>
+    <div class="container">
+        <h1>Upload Your Resume</h1>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label for="resume">Upload Resume (PDF):</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" required>
+            <div class="template-select" id="templateSelect">
+                <!-- Template images will be inserted here -->
+            </div>
+            <input type="hidden" id="selectedTemplate" name="selectedTemplate" value="tempA">
+
+            <button type="submit">Submit</button>
+        </form>
+        <div class="message" id="message"></div>
+        <button id="downloadPdf">Download PDF</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        const form = document.getElementById("uploadForm");
+        const messageDiv = document.getElementById("message");
+        const templateSelectDiv = document.getElementById("templateSelect");
+        const downloadPdfButton = document.getElementById('downloadPdf');
+        const selectedTemplateInput = document.getElementById("selectedTemplate");
+        let generatedHTML; //Declare the variable here
+
+
+        // Define your templates
+        const templates = [
+            { id: "tempA", image: "/images/templateA.png", alt: "Template A" },
+            { id: "tempB", image: "/images/templateB.png", alt: "Template B" },
+            { id: "tempC", image: "/images/templateC.png", alt: "Template C" },
+        ];
+
+
+        // Add the image preview for templates to the template div
+        templates.forEach(template => {
+            const templateImage = document.createElement("img");
+            templateImage.src = template.image;
+            templateImage.alt = template.alt;
+            templateImage.classList.add("template-image");
+            templateImage.setAttribute("data-template", template.id);
+
+            // if it is the default template, select it.
+            if (template.id === selectedTemplateInput.value) {
+                templateImage.classList.add("selected")
+            }
+
+            templateImage.addEventListener("click", () => {
+                // remove selected state for previous template.
+                const selectedImage = document.querySelector(".template-image.selected");
+                if (selectedImage) {
+                    selectedImage.classList.remove("selected");
+                }
+                // Add selected state to currently selected template
+                templateImage.classList.add("selected");
+                selectedTemplateInput.value = template.id;
+
+            });
+            templateSelectDiv.appendChild(templateImage);
+
+        });
+
+
+
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append("resume", document.getElementById("resume").files[0]);
+            formData.append("template", selectedTemplateInput.value); //send the selected template to the server
+
+            messageDiv.textContent = "Uploading...";
+
+
+            try {
+                const response = await fetch("http://localhost:3000/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    messageDiv.textContent = "File uploaded and processed successfully!";
+                    messageDiv.classList.remove("error");
+                    //console.log("generatedHTML",result.generatedHTML) //Added this line for console log
+                    generatedHTML = result.generatedHTML;  // Assign the value here
+
+                } else {
+                    messageDiv.textContent = "Failed to upload file. Please try again.";
+                    messageDiv.classList.add("error");
+                }
+            } catch (error) {
+                messageDiv.textContent = "An error occurred. Please try again.";
+                messageDiv.classList.add("error");
+                console.error(error);
+            }
+        });
+
+        downloadPdfButton.addEventListener('click', function () {
+           const htmlContent = generatedHTML; //Use the previously stored value
+                const opt = {
+                    margin: 10,
+                    filename: 'resume.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                html2pdf().from(htmlContent).set(opt).save();
+        })
+    </script>
+</body>
+
+</html>
